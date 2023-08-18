@@ -4,12 +4,12 @@
  */
 
 // Defines indicator's parameter values for the given pair symbol and timeframe.
-struct Indi_Demo_Params_H1 : IndiDemoParams {
-  Indi_Demo_Params_H1() : IndiDemoParams(indi_demo_defaults, PERIOD_H1) { shift = 0; }
-} indi_demo_h1;
+struct Indi_Arrows_Params_H1 : IndiArrowsParams {
+  Indi_Arrows_Params_H1() : IndiArrowsParams(indi_arrows_defaults, PERIOD_H1) { shift = 0; }
+} indi_arrows_h1;
 
 // Defines strategy's parameter values for the given pair symbol and timeframe.
-struct Stg_Demo_Params_H1 : StgParams {
+struct Stg_Arrows_Params_H1 : StgParams {
   // Struct constructor.
-  Stg_Demo_Params_H1() : StgParams(stg_demo_defaults) {}
-} stg_demo_h1;
+  Stg_Arrows_Params_H1() : StgParams(stg_arrows_defaults) {}
+} stg_arrows_h1;
