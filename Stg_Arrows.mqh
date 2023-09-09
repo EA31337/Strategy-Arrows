@@ -3,6 +3,9 @@
  * Implements Arrows strategy based on the price-arrow-type indicators.
  */
 
+// Includes.
+#include "Indi_ATR_MA_Slope.mqh"
+
 // User input params.
 INPUT_GROUP("Arrows strategy: strategy params");
 INPUT float Arrows_LotSize = 0;                // Lot size
@@ -22,9 +25,12 @@ INPUT short Arrows_Shift = 0;                  // Shift
 INPUT float Arrows_OrderCloseLoss = 80;        // Order close loss
 INPUT float Arrows_OrderCloseProfit = 80;      // Order close profit
 INPUT int Arrows_OrderCloseTime = -30;         // Order close time in mins (>0) or bars (<0)
-INPUT_GROUP("Arrows strategy: Arrows indicator params");
-INPUT int Arrows_Indi_Arrows_Shift = 0;                                        // Shift
-INPUT ENUM_IDATA_SOURCE_TYPE Arrows_Indi_Arrows_SourceType = IDATA_INDICATOR;  // Source type
+INPUT_GROUP("Arrows strategy: ATR_MA_Slope indicator params");
+INPUT int Arrows_Indi_ATR_MA_Slope_NumberOfBars = 100;       // Number of bars to process
+INPUT double Arrows_Indi_ATR_MA_Slope_SlopeThreshold = 2.0;  // Slope threshold
+INPUT int Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod = 7;        // MA Period
+INPUT int Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod = 50;      // ATR Period
+INPUT int Arrows_Indi_ATR_MA_Slope_Shift = 0;                // Shift
 
 // Structs.
 
@@ -79,35 +85,45 @@ class Stg_Arrows : public Strategy {
    * Event on strategy's init.
    */
   void OnInit() {
-    IndiArrowsParams _indi_params(::Arrows_Indi_Arrows_Shift);
+    IndiAtrMaSlopeParams _indi_params(::Arrows_Indi_ATR_MA_Slope_NumberOfBars,
+                                      ::Arrows_Indi_ATR_MA_Slope_SlopeThreshold,
+                                      ::Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod,
+                                      ::Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod, ::Arrows_Indi_ATR_MA_Slope_Shift);
     _indi_params.SetTf(Get<ENUM_TIMEFRAMES>(STRAT_PARAM_TF));
-    SetIndicator(new Indi_Arrows(_indi_params));
+    SetIndicator(new Indi_ATR_MA_Slope(_indi_params));
   }
 
   /**
    * Check strategy's opening signal.
    */
   bool SignalOpen(ENUM_ORDER_TYPE _cmd, int _method, float _level = 0.0f, int _shift = 0) {
-    Indi_Arrows *_indi = GetIndicator();
+    Indi_ATR_MA_Slope *_indi = GetIndicator();
+    int _ishift = _shift + ::Arrows_Indi_ATR_MA_Slope_Shift;  // @fixme: Improve logic.
     bool _result =
-        _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _shift) && _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _shift + 1);
+        _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift) && _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift + 1);
     if (!_result) {
       // Returns false when indicator data is not valid.
       return false;
     }
-    IndicatorSignal _signals = _indi.GetSignals(4, _shift);
+    // IndicatorSignal _signals = _indi.GetSignals(4, _shift);
+    double _long = _indi[_ishift][(int)ATR_MA_SLOPE_LONG];
+    double _short = _indi[_ishift][(int)ATR_MA_SLOPE_SHORT];
     switch (_cmd) {
       case ORDER_TYPE_BUY:
         // Buy signal.
-        _result &= _indi.IsIncreasing(1, 0, _shift);
-        _result &= _indi.IsIncByPct(_level / 10, 0, _shift, 2);
-        _result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
+        // @fixme
+        // _result &= _indi[_ishift][(int)ATR_MA_SLOPE_LONG] > 0 && !_indi[_ishift][(int)ATR_MA_SLOPE_LONG] != DBL_MAX;
+        _result &= _indi.IsIncreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
+        //_result &= _indi.IsIncByPct(_level / 10, 0, _shift, 2);
+        //_result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
         break;
       case ORDER_TYPE_SELL:
         // Sell signal.
-        _result &= _indi.IsDecreasing(1, 0, _shift);
-        _result &= _indi.IsDecByPct(_level / 10, 0, _shift, 2);
-        _result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
+        // @fixme
+        // _result &= _indi[_ishift][(int)ATR_MA_SLOPE_SHORT] > 0 && !_indi[_ishift][(int)ATR_MA_SLOPE_SHORT] != DBL_MAX;
+        _result &= _indi.IsDecreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
+        //_result &= _indi.IsDecByPct(_level / 10, 0, _shift, 2);
+        //_result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
         break;
     }
     return _result;
