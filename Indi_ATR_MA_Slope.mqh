@@ -28,11 +28,11 @@
 
 // Indicator line identifiers used in the indicator.
 enum ENUM_ATR_MA_SLOPE_MODE {
-  ATR_MA_SLOPE_SLOPE = 0,  // Slope.
-  ATR_MA_SLOPE_LONG = 1,   // Long signal.
-  ATR_MA_SLOPE_SHORT = 2,  // Short signal.
-  ATR_MA_SLOPE_FLAT = 3,   // Neutral plot.
-  FINAL_ATR_MA_SLOPE_MODE_ENTRY,
+  ATR_MA_SLOPE_SLOPE = 0,         // Slope
+  ATR_MA_SLOPE_LONG = 1,          // Long signal
+  ATR_MA_SLOPE_SHORT = 2,         // Short signal
+  ATR_MA_SLOPE_FLAT = 3,          // Neutral plot
+  FINAL_ATR_MA_SLOPE_MODE_ENTRY,  // n/a
 };
 
 // Structs.

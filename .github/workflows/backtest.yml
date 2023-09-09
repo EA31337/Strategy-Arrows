@@ -6,14 +6,14 @@ on:
   pull_request:
     branches:
       - 'master'
-      - 'dev*'
+      - '*dev*'
     paths-ignore:
       - '*.md'
       - '.git*'
   push:
     branches:
       - 'master'
-      - 'dev*'
+      - '*dev*'
     paths-ignore:
       - '*.md'
       - '.git*'
@@ -60,7 +60,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: EA
-          path: '*.ex?'
+          path: '*.ex[45]'
   Compile-Indicators:
     defaults:
       run:
@@ -103,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Indicators
-          path: '**/*.ex?'
+          path: '**/*.ex[45]'
   Test:
     needs: [Compile-EA, Compile-Indicators]
     runs-on: ubuntu-latest

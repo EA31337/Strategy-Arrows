@@ -1,12 +1,20 @@
 /**
  * @file
- * Implements Arrows strategy based on the arrows-type indicators.
+ * Implements Arrows strategy based on the price-arrow-type indicators.
  */
+
+enum ENUM_STG_ARROWS_TYPE {
+  STG_ARROWS_TYPE_0_NONE = 0,  // (None)
+  // STG_ARROWS_TYPE_ATR_MA_SLOPE,  // ATR MA Slope
+  STG_ARROWS_TYPE_FRACTALS,  // Fractals
+};
 
 // Includes.
 #include "Indi_ATR_MA_Slope.mqh"
 
 // User input params.
+INPUT_GROUP("Arrows strategy: main strategy params");
+INPUT ENUM_STG_ARROWS_TYPE Arrows_Type = STG_ARROWS_TYPE_FRACTALS;  // Indicator type
 INPUT_GROUP("Arrows strategy: strategy params");
 INPUT float Arrows_LotSize = 0;                // Lot size
 INPUT int Arrows_SignalOpenMethod = 0;         // Signal open method
@@ -25,17 +33,26 @@ INPUT short Arrows_Shift = 0;                  // Shift
 INPUT float Arrows_OrderCloseLoss = 80;        // Order close loss
 INPUT float Arrows_OrderCloseProfit = 80;      // Order close profit
 INPUT int Arrows_OrderCloseTime = -30;         // Order close time in mins (>0) or bars (<0)
+/*
 INPUT_GROUP("Arrows strategy: ATR_MA_Slope indicator params");
-INPUT int Arrows_Indi_ATR_MA_Slope_NumberOfBars = 100;       // Number of bars to process
-INPUT double Arrows_Indi_ATR_MA_Slope_SlopeThreshold = 2.0;  // Slope threshold
-INPUT int Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod = 7;        // MA Period
-INPUT int Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod = 50;      // ATR Period
-INPUT int Arrows_Indi_ATR_MA_Slope_Shift = 0;                // Shift
+INPUT int Arrows_Indi_ATR_MA_Slope_NumberOfBars = 100;                                  // Number of bars to process
+INPUT double Arrows_Indi_ATR_MA_Slope_SlopeThreshold = 2.0;                             // Slope threshold
+INPUT int Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod = 7;                                   // MA Period
+INPUT int Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod = 50;                                 // ATR Period
+INPUT int Arrows_Indi_ATR_MA_Slope_Shift = 0;                                           // Shift
+INPUT ENUM_ATR_MA_SLOPE_MODE Arrows_Indi_ATR_MA_Slope_Mode_Long = ATR_MA_SLOPE_LONG;    // Mode for long
+INPUT ENUM_ATR_MA_SLOPE_MODE Arrows_Indi_ATR_MA_Slope_Mode_Short = ATR_MA_SLOPE_SHORT;  // Mode for short
+*/
+INPUT_GROUP("Arrows strategy: Fractals indicator params");
+INPUT int Arrows_Indi_Fractals_Shift = 2;                            // Shift
+INPUT ENUM_LO_UP_LINE Arrows_Indi_Fractals_Mode_Long = LINE_LOWER;   // Mode for long
+INPUT ENUM_LO_UP_LINE Arrows_Indi_Fractals_Mode_Short = LINE_UPPER;  // Mode for short
 
 // Structs.
 
 // Defines struct with default user strategy values.
 struct Stg_Arrows_Params_Defaults : StgParams {
+  uint mode_long, mode_short;
   Stg_Arrows_Params_Defaults()
       : StgParams(::Arrows_SignalOpenMethod, ::Arrows_SignalOpenFilterMethod, ::Arrows_SignalOpenLevel,
                   ::Arrows_SignalOpenBoostMethod, ::Arrows_SignalCloseMethod, ::Arrows_SignalCloseFilter,
@@ -47,20 +64,18 @@ struct Stg_Arrows_Params_Defaults : StgParams {
     Set(STRAT_PARAM_OCT, Arrows_OrderCloseTime);
     Set(STRAT_PARAM_SOFT, Arrows_SignalOpenFilterTime);
   }
+  // Getters.
+  uint GetModeLong() { return mode_long; }
+  uint GetModeShort() { return mode_short; }
+  // Setters.
+  void SetModeLong(uint _value) { mode_long = _value; }
+  void SetModeShort(uint _value) { mode_short = _value; }
 };
 
-#ifdef __config__
-// Loads pair specific param values.
-#include "config/H1.h"
-#include "config/H4.h"
-#include "config/H8.h"
-#include "config/M1.h"
-#include "config/M15.h"
-#include "config/M30.h"
-#include "config/M5.h"
-#endif
-
 class Stg_Arrows : public Strategy {
+ protected:
+  Stg_Arrows_Params_Defaults ssparams;
+
  public:
   Stg_Arrows(StgParams &_sparams, TradeParams &_tparams, ChartParams &_cparams, string _name = "")
       : Strategy(_sparams, _tparams, _cparams, _name) {}
@@ -69,11 +84,6 @@ class Stg_Arrows : public Strategy {
     // Initialize strategy initial values.
     Stg_Arrows_Params_Defaults stg_arrows_defaults;
     StgParams _stg_params(stg_arrows_defaults);
-#ifdef __config__
-    SetParamsByTf<StgParams>(_stg_params, _tf, stg_arrows_m1, stg_arrows_m5, stg_arrows_m15, stg_arrows_m30,
-                             stg_arrows_h1, stg_arrows_h4, stg_arrows_h8);
-#endif
-    // Initialize indicator.
     // Initialize Strategy instance.
     ChartParams _cparams(_tf, _Symbol);
     TradeParams _tparams;
@@ -85,43 +95,68 @@ class Stg_Arrows : public Strategy {
    * Event on strategy's init.
    */
   void OnInit() {
-    IndiAtrMaSlopeParams _indi_params(::Arrows_Indi_ATR_MA_Slope_NumberOfBars,
-                                      ::Arrows_Indi_ATR_MA_Slope_SlopeThreshold,
-                                      ::Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod,
-                                      ::Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod, ::Arrows_Indi_ATR_MA_Slope_Shift);
-    _indi_params.SetTf(Get<ENUM_TIMEFRAMES>(STRAT_PARAM_TF));
-    SetIndicator(new Indi_ATR_MA_Slope(_indi_params));
+    // Initialize indicators.
+    switch (Arrows_Type) {
+        /*
+          case STG_ARROWS_TYPE_ATR_MA_SLOPE:  // ATR MA Slope
+          {
+            IndiAtrMaSlopeParams _indi_params(::Arrows_Indi_ATR_MA_Slope_NumberOfBars,
+                                              ::Arrows_Indi_ATR_MA_Slope_SlopeThreshold,
+                                              ::Arrows_Indi_ATR_MA_Slope_SlopeMAPeriod,
+                                              ::Arrows_Indi_ATR_MA_Slope_SlopeATRPeriod,
+          ::Arrows_Indi_ATR_MA_Slope_Shift); _indi_params.SetTf(Get<ENUM_TIMEFRAMES>(STRAT_PARAM_TF)); SetIndicator(new
+          Indi_ATR_MA_Slope(_indi_params), ::Arrows_Type); ssparams.SetModeLong(::Arrows_Indi_ATR_MA_Slope_Mode_Long);
+            ssparams.SetModeShort(::Arrows_Indi_ATR_MA_Slope_Mode_Short);
+            break;
+          }
+          */
+      case STG_ARROWS_TYPE_FRACTALS:  // Fractals
+      {
+        IndiFractalsParams _indi_params(::Arrows_Indi_Fractals_Shift);
+        _indi_params.SetTf(Get<ENUM_TIMEFRAMES>(STRAT_PARAM_TF));
+        SetIndicator(new Indi_Fractals(_indi_params), ::Arrows_Type);
+        ssparams.SetModeLong(::Arrows_Indi_Fractals_Mode_Long);
+        ssparams.SetModeShort(::Arrows_Indi_Fractals_Mode_Short);
+        break;
+      }
+      case STG_ARROWS_TYPE_0_NONE:  // (None)
+      default:
+        break;
+    }
   }
 
   /**
    * Check strategy's opening signal.
    */
   bool SignalOpen(ENUM_ORDER_TYPE _cmd, int _method, float _level = 0.0f, int _shift = 0) {
-    Indi_ATR_MA_Slope *_indi = GetIndicator();
-    int _ishift = _shift + ::Arrows_Indi_ATR_MA_Slope_Shift;  // @fixme: Improve logic.
-    bool _result =
-        _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift) && _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift + 1);
+    IndicatorBase *_indi = GetIndicator(::Arrows_Type);
+    uint _ishift = _shift + ::Arrows_Indi_Fractals_Shift;  // @todo: _indi.GetShift();
+    // bool _result =
+    // _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift) && _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift + 1);
+    bool _result = true;
     if (!_result) {
       // Returns false when indicator data is not valid.
       return false;
     }
     // IndicatorSignal _signals = _indi.GetSignals(4, _shift);
-    double _long = _indi[_ishift][(int)ATR_MA_SLOPE_LONG];
-    double _short = _indi[_ishift][(int)ATR_MA_SLOPE_SHORT];
+    int _mode_long = (int)ssparams.GetModeLong();
+    int _mode_short = (int)ssparams.GetModeShort();
     switch (_cmd) {
       case ORDER_TYPE_BUY:
         // Buy signal.
+        _result &= _indi[_ishift][_mode_long] != 0.0 && _indi[_ishift][_mode_long] != DBL_MAX;
         // @fixme
         // _result &= _indi[_ishift][(int)ATR_MA_SLOPE_LONG] > 0 && !_indi[_ishift][(int)ATR_MA_SLOPE_LONG] != DBL_MAX;
-        _result &= _indi.IsIncreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
+        // _result &= _indi.IsIncreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
         //_result &= _indi.IsIncByPct(_level / 10, 0, _shift, 2);
         //_result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
         break;
       case ORDER_TYPE_SELL:
         // Sell signal.
+        _result &= _indi[_ishift][_mode_short] != 0.0 && _indi[_ishift][_mode_short] != DBL_MAX;
         // @fixme
-        // _result &= _indi[_ishift][(int)ATR_MA_SLOPE_SHORT] > 0 && !_indi[_ishift][(int)ATR_MA_SLOPE_SHORT] != DBL_MAX;
-        _result &= _indi.IsDecreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
+        // _result &= _indi[_ishift][(int)ATR_MA_SLOPE_SHORT] > 0 && !_indi[_ishift][(int)ATR_MA_SLOPE_SHORT] !=
+        // DBL_MAX; _result &= _indi.IsDecreasing(1, ATR_MA_SLOPE_SLOPE, _ishift);
         //_result &= _indi.IsDecByPct(_level / 10, 0, _shift, 2);
         //_result &= _method > 0 ? _signals.CheckSignals(_method) : _signals.CheckSignalsAll(-_method);
         break;
