@@ -1,6 +1,6 @@
 /**
  * @file
- * Implements Arrows strategy based on the Arrows indicator.
+ * Implements Arrows strategy based on the price-arrow-type indicators.
  */
 
 // User input params.

@@ -6,7 +6,7 @@
 [![Discuss][gh-discuss-badge]][gh-discuss-link]
 [![License][license-image]][license-link]
 
-Strategy based on the Arrows indicator.
+Strategy based on the price-arrow-type indicators.
 
 ## Dependencies
 
