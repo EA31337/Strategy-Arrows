@@ -51,14 +51,12 @@ struct IndiAtrMaSlopeParams : public IndicatorParams {
       : number_of_bars(_number_of_bars),
         slope_threshold(_slope_threshold),
         slope_ma_period(_slope_ma_period),
-        slope_atr_period(_slope_atr_period),
-        IndicatorParams(INDI_CUSTOM, FINAL_ATR_MA_SLOPE_MODE_ENTRY, TYPE_DOUBLE) {
+        slope_atr_period(_slope_atr_period) {
 #ifdef __resource__
     custom_indi_name = "::" + INDI_ATR_MA_SLOPE_PATH + "\\ATR_MA_Slope";
 #else
     custom_indi_name = "ATR_MA_Slope";
 #endif
-    SetDataSourceType(IDATA_ICUSTOM);
   };
 
   IndiAtrMaSlopeParams(IndiAtrMaSlopeParams &_params, ENUM_TIMEFRAMES _tf) {
@@ -86,8 +84,12 @@ class Indi_ATR_MA_Slope : public Indicator<IndiAtrMaSlopeParams> {
   /**
    * Class constructor.
    */
-  Indi_ATR_MA_Slope(IndiAtrMaSlopeParams &_p, IndicatorBase *_indi_src = NULL)
-      : Indicator<IndiAtrMaSlopeParams>(_p, _indi_src) {}
+  Indi_ATR_MA_Slope(IndiAtrMaSlopeParams &_p, ENUM_IDATA_SOURCE_TYPE _idstype = IDATA_ICUSTOM,
+                    IndicatorBase *_indi_src = NULL, int _indi_src_mode = 0)
+      : Indicator<IndiAtrMaSlopeParams>(_p,
+                                        IndicatorDataParams::GetInstance(FINAL_ATR_MA_SLOPE_MODE_ENTRY, TYPE_DOUBLE,
+                                                                         _idstype, IDATA_RANGE_PRICE, _indi_src_mode),
+                                        _indi_src) {}
   Indi_ATR_MA_Slope(ENUM_TIMEFRAMES _tf = PERIOD_CURRENT) : Indicator(INDI_CUSTOM, _tf){};
 
   /**
@@ -97,11 +99,11 @@ class Indi_ATR_MA_Slope : public Indicator<IndiAtrMaSlopeParams> {
   IndicatorDataEntryValue GetEntryValue(int _mode = 0, int _shift = -1) {
     double _value = EMPTY_VALUE;
     int _ishift = _shift >= 0 ? _shift : iparams.GetShift();
-    switch (iparams.idstype) {
+    switch (Get<ENUM_IDATA_SOURCE_TYPE>(STRUCT_ENUM(IndicatorDataParams, IDATA_PARAM_IDSTYPE))) {
       case IDATA_ICUSTOM:
-        _value = iCustom(istate.handle, Get<string>(CHART_PARAM_SYMBOL), Get<ENUM_TIMEFRAMES>(CHART_PARAM_TF),
-                         iparams.custom_indi_name, Get<ENUM_TIMEFRAMES>(CHART_PARAM_TF), iparams.GetNumberOfBars(),
-                         iparams.GetThreshold(), iparams.GetMaPeriod(), iparams.GetAtrPeriod(), _mode, _ishift);
+        _value =
+            iCustom(istate.handle, GetSymbol(), GetTf(), iparams.custom_indi_name, GetTf(), iparams.GetNumberOfBars(),
+                    iparams.GetThreshold(), iparams.GetMaPeriod(), iparams.GetAtrPeriod(), _mode, _ishift);
         break;
       default:
         SetUserError(ERR_INVALID_PARAMETER);

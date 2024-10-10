@@ -129,7 +129,7 @@ class Stg_Arrows : public Strategy {
    * Check strategy's opening signal.
    */
   bool SignalOpen(ENUM_ORDER_TYPE _cmd, int _method, float _level = 0.0f, int _shift = 0) {
-    IndicatorBase *_indi = GetIndicator(::Arrows_Type);
+    IndicatorData *_indi = GetIndicator(::Arrows_Type);
     uint _ishift = _shift + ::Arrows_Indi_Fractals_Shift;  // @todo: _indi.GetShift();
     // bool _result =
     // _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift) && _indi.GetFlag(INDI_ENTRY_FLAG_IS_VALID, _ishift + 1);
